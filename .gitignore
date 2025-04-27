@@ -6,8 +6,3 @@
 
 # no model
 *.h5
-
-# not generated files
-/hls4ml_mnist_vitis_prj
-hls4ml_mnist_vitis_prj.tar.gz
-

@@ -1,0 +1,76 @@
+Backend: Vitis
+ClockPeriod: 5
+HLSConfig:
+  LayerName:
+    conv2d_1:
+      Precision:
+        bias: fixed<16,6>
+        result: fixed<16,6>
+        weight: fixed<16,6>
+      Trace: false
+    conv2d_1_input:
+      Precision:
+        result: fixed<16,6>
+      Trace: false
+    conv2d_1_relu:
+      Precision:
+        result: fixed<16,6>
+      Trace: false
+    conv2d_2:
+      Precision:
+        bias: fixed<16,6>
+        result: fixed<16,6>
+        weight: fixed<16,6>
+      Trace: false
+    conv2d_2_relu:
+      Precision:
+        result: fixed<16,6>
+      Trace: false
+    dense_1:
+      Precision:
+        bias: fixed<16,6>
+        result: fixed<16,6>
+        weight: fixed<16,6>
+      Trace: false
+    dense_1_relu:
+      Precision:
+        result: fixed<16,6>
+      Trace: false
+    dense_2:
+      Precision:
+        bias: fixed<16,6>
+        result: fixed<16,6>
+        weight: fixed<16,6>
+      Trace: false
+    dense_2_softmax:
+      Precision:
+        result: fixed<16,6>
+      Trace: false
+    flatten:
+      Precision:
+        result: fixed<16,6>
+      Trace: false
+    max_pooling2d_1:
+      Precision:
+        result: fixed<16,6>
+      Trace: false
+    max_pooling2d_2:
+      Precision:
+        result: fixed<16,6>
+      Trace: false
+  Model:
+    Backend: Vitis
+    BramFactor: 1000000000
+    Precision: ap_fixed<16,6>
+    ReuseFactor: 3
+    SerializeOutput: true
+    Strategy: Resource
+    TraceOutput: false
+IOType: io_parallel
+InputData: null
+KerasModel: !keras_model 'hls4ml_mnist_vitis_prj/keras_model.h5'
+OutputDir: hls4ml_mnist_vitis_prj
+OutputPredictions: null
+Part: xc7z020clg400-1
+ProjectName: myproject
+Stamp: 3Fcb20eF
