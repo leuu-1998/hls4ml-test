@@ -22,12 +22,10 @@ proc remove_recursive_log_wave {} {
     set filename ${project_name}_prj/solution1/sim/verilog/${project_name}.tcl
     set timestamp [clock format [clock seconds] -format {%Y%m%d%H%M%S}]
     set temp     $filename.new.$timestamp
-    # set backup   $filename.bak.$timestamp
 
     set in  [open $filename r]
     set out [open $temp     w]
 
-    # line-by-line, read the original file
     while {[gets $in line] != -1} {
         if {[string equal "$line" "log_wave -r /"]} {
             set line { }
@@ -38,7 +36,6 @@ proc remove_recursive_log_wave {} {
     close $in
     close $out
 
-    # move the new data to the proper filename
     file delete -force $filename
     file rename -force $temp $filename
 }
@@ -50,18 +47,16 @@ proc add_vcd_instructions_tcl {} {
     set filename ${project_name}_prj/solution1/sim/verilog/${project_name}.tcl
     set timestamp [clock format [clock seconds] -format {%Y%m%d%H%M%S}]
     set temp     $filename.new.$timestamp
-    # set backup   $filename.bak.$timestamp
 
     set in  [open $filename r]
     set out [open $temp     w]
 
-    # line-by-line, read the original file
     while {[gets $in line] != -1} {
         if {[string equal "$line" "log_wave -r /"]} {
             set line {source "../../../../project.tcl"
                 if {[string equal "$backend" "vivadoaccelerator"]} {
                     current_scope [get_scopes -regex "/apatb_${project_name}_axi_top/AESL_inst_${project_name}_axi/${project_name}_U0.*"]
-                    set scopes [get_scopes -regexp {layer(\d*)_.*data_0_V_U.*}]
+                    set scopes [get_scopes -regexp {layer(d*)_.*data_0_V_U.*}]
                     append scopes { }
                     current_scope "/apatb_${project_name}_axi_top/AESL_inst_${project_name}_axi"
                     append scopes [get_scopes -regexp {(in_local_V_data.*_0_.*)}]
@@ -69,7 +64,7 @@ proc add_vcd_instructions_tcl {} {
                     append scopes [get_scopes -regexp {(out_local_V_data.*_0_.*)}]
                 } else {
                     current_scope [get_scopes -regex "/apatb_${project_name}_top/AESL_inst_${project_name}"]
-                    set scopes [get_scopes -regexp {layer(\d*)_.*data_0_V_U.*}]
+                    set scopes [get_scopes -regexp {layer(d*)_.*data_0_V_U.*}]
                 }
                 open_vcd fifo_opt.vcd
                 foreach scope $scopes {
@@ -96,21 +91,19 @@ proc add_vcd_instructions_tcl {} {
                 quit
             }
         }
-        # then write the transformed line
         puts $out $line
     }
 
     close $in
     close $out
 
-    # move the new data to the proper filename
     file delete -force $filename
     file rename -force $temp $filename
 }
 
 foreach arg $::argv {
     foreach o [lsort [array names opt]] {
-        regexp "$o=+(\\w+)" $arg unused opt($o)
+        regexp "$o=+(\w+)" $arg unused opt($o)
     }
 }
 
@@ -122,18 +115,14 @@ proc report_time { op_name time_start time_end } {
     puts "***** ${op_name} COMPLETED IN ${time_h}h${time_m}m${time_s}s *****"
 }
 
-# Compare file content: 1 = same, 0 = different
 proc compare_files {file_1 file_2} {
-    # Check if files exist, error otherwise
     if {! ([file exists $file_1] && [file exists $file_2])} {
         return 0
     }
-    # Files with different sizes are obviously different
     if {[file size $file_1] != [file size $file_2]} {
         return 0
     }
 
-    # String compare the content of the files
     set fh_1 [open $file_1 r]
     set fh_2 [open $file_2 r]
     set equal [string equal [read $fh_1] [read $fh_2]]
@@ -161,13 +150,14 @@ if {$opt(reset)} {
 } else {
     open_solution "solution1"
 }
-catch {config_array_partition -maximum_size 4096}
-config_compile -name_max_length 80
-set_part $part
-config_schedule -enable_dsp_full_reg=false
-create_clock -period $clock_period -name default
-set_clock_uncertainty $clock_uncertainty default
 
+# Updated configuration for Vitis HLS 2024.1
+config_array_partition -throughput_driven on
+config_compile -name_max_length 80
+set_part xc7z020clg400-1
+config_schedule -enable_dsp_full_reg=false
+create_clock -period 10 -name default
+set_clock_uncertainty 0.1 default
 
 if {$opt(csim)} {
     puts "***** C SIMULATION *****"
@@ -187,14 +177,13 @@ if {$opt(synth)} {
 
 if {$opt(cosim)} {
     puts "***** C/RTL SIMULATION *****"
-    # TODO: This is a workaround (Xilinx defines __RTL_SIMULATION__ only for SystemC testbenches).
     add_files -tb ${project_name}_test.cpp -cflags "-std=c++0x -DRTL_SIM"
     set time_start [clock clicks -milliseconds]
 
     cosim_design -trace_level all -setup
 
     if {$opt(fifo_opt)} {
-        puts "\[hls4ml\] - FIFO optimization started"
+        puts "[hls4ml] - FIFO optimization started"
         add_vcd_instructions_tcl
     }
 
@@ -206,45 +195,4 @@ if {$opt(cosim)} {
 
     set time_end [clock clicks -milliseconds]
     puts "INFO:"
-    if {[string equal "$backend" "vivadoaccelerator"]} {
-        puts [read [open ${project_name}_prj/solution1/sim/report/${project_name}_axi_cosim.rpt r]]
-    } else {
-        puts [read [open ${project_name}_prj/solution1/sim/report/${project_name}_cosim.rpt r]]
-    }
-    report_time "C/RTL SIMULATION" $time_start $time_end
-}
-
-if {$opt(validation)} {
-    puts "***** C/RTL VALIDATION *****"
-    if {[compare_files $CSIM_RESULTS $RTL_COSIM_RESULTS]} {
-        puts "INFO: Test PASSED"
-    } else {
-        puts "ERROR: Test failed"
-        puts "ERROR: - csim log:      $CSIM_RESULTS"
-        puts "ERROR: - RTL-cosim log: $RTL_COSIM_RESULTS"
-        exit 1
-    }
-}
-
-if {$opt(export)} {
-    puts "***** EXPORT IP *****"
-    set time_start [clock clicks -milliseconds]
-    export_design -format ip_catalog
-    set time_end [clock clicks -milliseconds]
-    report_time "EXPORT IP" $time_start $time_end
-}
-
-if {$opt(vsynth)} {
-    puts "***** VIVADO SYNTHESIS *****"
-    if {[file exist ${project_name}_prj/solution1/syn/vhdl]} {
-        set time_start [clock clicks -milliseconds]
-        exec vivado -mode batch -source vivado_synth.tcl >@ stdout
-        set time_end [clock clicks -milliseconds]
-        report_time "VIVADO SYNTHESIS" $time_start $time_end
-    } else {
-        puts "ERROR: Cannot find generated VHDL files. Did you run C synthesis?"
-        exit 1
-    }
-}
-
-exit
+    if {[string equal "$backend" "vivadoacc
